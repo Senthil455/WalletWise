@@ -5,6 +5,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { FaDownload } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
+import { formatCurrency as formatMoney } from '../utils/currency';
 
 import {
   Chart as ChartJS,
@@ -49,9 +50,7 @@ const Reports = () => {
   const { user } = useAuth();
 
   const formatCurrency = useCallback((amount) => {
-    const currency = user?.currency || 'USD';
-    const locale = currency === 'INR' ? 'en-IN' : 'en-US';
-    return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(amount || 0);
+    return formatMoney(amount || 0, user?.currency);
   }, [user?.currency]);
 
   const fetchReports = useCallback(async () => {

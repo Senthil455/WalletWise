@@ -1,6 +1,7 @@
 const Wallet = require('../models/Wallet');
 const User = require('../models/User');
 const Transaction = require('../models/Transactions');
+const { isSupportedCurrency, normalizeCurrency } = require('../constants/currencies');
 
 // @desc    Create a new shared wallet
 // @route   POST /api/v1/wallets
@@ -9,10 +10,14 @@ exports.createWallet = async (req, res) => {
   try {
     const { name, description, currency } = req.body;
 
+    if (currency !== undefined && !isSupportedCurrency(currency)) {
+      return res.status(400).json({ message: 'Unsupported currency code' });
+    }
+
     const wallet = await Wallet.create({
       name,
       description,
-      currency: currency || 'USD',
+      currency: normalizeCurrency(currency),
       owner: req.userId,
       members: [{ user: req.userId, role: 'admin' }]
     });

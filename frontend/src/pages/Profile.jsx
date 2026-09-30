@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 import AppNavbar from '../components/AppNavbar';
 import BadgeGallery from '../components/Gamification/BadgeGallery';
+import { SUPPORTED_CURRENCIES, getCurrencySymbol } from '../utils/currency';
 
 import './Settings.css';
 import { FaUserCircle, FaArrowLeft, FaCamera, FaCheck, FaExclamationTriangle, FaTimes, FaBell } from 'react-icons/fa';
@@ -301,10 +302,11 @@ const Profile = () => {
                                 <label>Currency</label>
                                 <div className="select-wrapper">
                                     <select name="currency" value={formData.currency} onChange={handleChange}>
-                                        <option value="INR">INR (Rs)</option>
-                                        <option value="USD">USD ($)</option>
-                                        <option value="EUR">EUR (EUR)</option>
-                                        <option value="GBP">GBP (GBP)</option>
+                                        {SUPPORTED_CURRENCIES.map((c) => (
+                                            <option key={c.code} value={c.code}>
+                                                {c.code} ({getCurrencySymbol(c.code)}) - {c.name}
+                                            </option>
+                                        ))}
                                     </select>
                                 </div>
                             </div>

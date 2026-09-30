@@ -15,15 +15,14 @@ import api from '../api/client';
 import Spinner from '../components/Spinner';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import { formatCurrency as formatMoney } from '../utils/currency';
 import './SubscriptionDashboard.css';
 
 const SubscriptionDashboard = () => {
     const { user } = useAuth();
 
     const formatCurrency = (amount) => {
-        const currency = user?.currency || 'USD';
-        const locale = currency === 'INR' ? 'en-IN' : 'en-US';
-        return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(amount || 0);
+        return formatMoney(amount || 0, user?.currency);
     };
 
     const [subscriptions, setSubscriptions] = useState([]);

@@ -8,6 +8,7 @@ import EmptyState from '../components/EmptyState';
 import Spinner from '../components/Spinner';
 import { ShoppingBag, SearchX } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { formatCurrency as formatMoney } from '../utils/currency';
 import { useVault } from '../context/VaultContext';
 import { decryptNote } from '../services/encryption';
 import VaultUnlock from '../components/Vault/VaultUnlock';
@@ -165,9 +166,7 @@ const Transactions = () => {
 
 
   const formatCurrency = (amount) => {
-    const currency = user?.currency || 'USD';
-    const locale = currency === 'INR' ? 'en-IN' : 'en-US';
-    return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(amount || 0);
+    return formatMoney(amount || 0, user?.currency);
   };
 
   const formatDate = (dateString) =>
