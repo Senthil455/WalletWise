@@ -6,7 +6,7 @@ const { escapeRegex } = require('../utils/helpers');
 // Get all active subscriptions
 const getSubscriptions = async (req, res) => {
     try {
-        const subscriptions = await Subscription.find({ userId: req.userId, isActive: true }).sort({ nextDueDate: 1 });
+        const subscriptions = await Subscription.find({ userId: req.userId, isActive: true }).sort({ nextDueDate: 1 }).lean();
         res.json({ success: true, subscriptions });
     } catch (error) {
         console.error('Error fetching subscriptions:', error);
@@ -75,13 +75,13 @@ const detectSubscriptions = async (req, res) => {
             userId,
             type: 'expense',
             date: { $gte: threeMonthsAgo }
-        }).sort({ date: 1 });
+        }).sort({ date: 1 }).lean();
 
         // 1. Fetch ALL active subscriptions for this user (Batch Query - Fixes N+1)
         const existingSubscriptions = await Subscription.find({
             userId,
             isActive: true
-        });
+        }).lean();
 
         const candidates = [];
         const grouped = {};

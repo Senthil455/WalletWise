@@ -160,7 +160,7 @@ const getMoodCorrelation = async (req, res) => {
       userId,
       type: 'expense',
       date: { $gte: thirtyDaysAgo }
-    });
+    }).lean();
 
     const IMPULSIVE_MOODS = ['stressed', 'bored', 'sad'];
     const INTENTIONAL_MOODS = ['happy', 'calm', 'neutral'];
