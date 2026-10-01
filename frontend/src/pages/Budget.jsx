@@ -7,6 +7,7 @@ import AddIncome from './AddIncome';
 import SetBudget from './SetBudget';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { formatCurrency as formatMoney } from '../utils/currency';
 import './Budget.css';
 
 const categoryPalette = ['#2563eb', '#14b8a6', '#f59e0b', '#ef4444', '#8b5cf6'];
@@ -23,13 +24,7 @@ const Budget = () => {
   const [weeklyExpenses, setWeeklyExpenses] = useState([]);
 
   const formatCurrency = useCallback((amount) => {
-    const currency = user?.currency || 'USD';
-    const locale = currency === 'INR' ? 'en-IN' : 'en-US';
-    return new Intl.NumberFormat(locale, {
-      style: 'currency',
-      currency,
-      maximumFractionDigits: 2
-    }).format(amount || 0);
+    return formatMoney(amount || 0, user?.currency, { maximumFractionDigits: 2 });
   }, [user?.currency]);
 
   const loadBudgetData = useCallback(async (isRefresh = false) => {

@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { formatCurrency as formatMoney } from '../utils/currency';
 import { DashboardSkeleton } from './SkeletonLoader';
 import './dashboard.css';
 import GuidedTour from './GuidedTour';
@@ -640,9 +641,7 @@ const Dashboard = () => {
       tooltip: {
         callbacks: {
           label: function (context) {
-            const currency = user?.currency || 'USD';
-            const locale = currency === 'INR' ? 'en-IN' : 'en-US';
-            return context.dataset.label + ': ' + new Intl.NumberFormat(locale, { style: 'currency', currency }).format(context.raw);
+            return context.dataset.label + ': ' + formatMoney(context.raw, user?.currency);
           }
         }
       }
@@ -675,14 +674,7 @@ const Dashboard = () => {
         ticks: {
           color: "#64748b",
           callback: function (value) {
-            const currency = user?.currency || 'USD';
-            const locale = currency === 'INR' ? 'en-IN' : 'en-US';
-            return new Intl.NumberFormat(locale, {
-              style: 'currency',
-              currency: currency,
-              minimumFractionDigits: 0,
-              maximumFractionDigits: 0
-            }).format(value);
+            return formatMoney(value, user?.currency, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
           }
         }
       },
@@ -699,13 +691,7 @@ const Dashboard = () => {
 
   // ============ UTILITIES ============
   const formatCurrency = (amount) => {
-    const currency = user?.currency || 'USD';
-    const locale = currency === 'INR' ? 'en-IN' : 'en-US';
-    return new Intl.NumberFormat(locale, {
-      style: 'currency',
-      currency: currency,
-      minimumFractionDigits: 0
-    }).format(amount);
+    return formatMoney(amount, user?.currency, { minimumFractionDigits: 0 });
   };
 
   const formatTransactionDate = (dateString) => {

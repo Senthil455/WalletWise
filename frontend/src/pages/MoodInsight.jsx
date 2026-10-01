@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/client';
+import useCurrency from '../hooks/useCurrency';
 import './MoodInsight.css';
 
 const MOOD_EMOJIS = {
@@ -13,6 +14,7 @@ const MOOD_EMOJIS = {
 };
 
 const MoodInsight = () => {
+  const { format: formatMoney } = useCurrency();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -75,19 +77,19 @@ const MoodInsight = () => {
             <div className="stat-item">
               <div className="stat-value impulsive">{impPct}%</div>
               <div className="stat-label">Impulsive</div>
-              <div className="stat-amount">₹{impulsiveVsIntentional.impulsiveTotal.toLocaleString()}</div>
+              <div className="stat-amount">{formatMoney(impulsiveVsIntentional.impulsiveTotal)}</div>
             </div>
 
             <div className="stat-item">
               <div className="stat-value intentional">{intPct}%</div>
               <div className="stat-label">Intentional</div>
-              <div className="stat-amount">₹{impulsiveVsIntentional.intentionalTotal.toLocaleString()}</div>
+              <div className="stat-amount">{formatMoney(impulsiveVsIntentional.intentionalTotal)}</div>
             </div>
 
             <div className="stat-item">
               <div className="stat-value" style={{ color: '#90caf9' }}>{totalTransactions}</div>
               <div className="stat-label">Transactions</div>
-              <div className="stat-amount">₹{totalSpent.toLocaleString()}</div>
+              <div className="stat-amount">{formatMoney(totalSpent)}</div>
             </div>
           </div>
 
@@ -125,8 +127,8 @@ const MoodInsight = () => {
                     <span className="mood-name">{row.mood}</span>
                   </td>
                   <td>{row.count}</td>
-                  <td>₹{row.total.toLocaleString()}</td>
-                  <td>₹{row.avgPerTx.toLocaleString()}</td>
+                  <td>{formatMoney(row.total)}</td>
+                  <td>{formatMoney(row.avgPerTx)}</td>
                 </tr>
               ))}
             </tbody>
@@ -148,10 +150,10 @@ const MoodInsight = () => {
                       {MOOD_EMOJIS[t.mood] || '🙂'} {t.mood}
                     </div>
                     
-                    <div className="trigger-amount">₹{t.total.toLocaleString()} spent</div>
+                    <div className="trigger-amount">{formatMoney(t.total)} spent</div>
                     {catInfo && (
                       <div className="trigger-category">
-                        Top category: {catInfo.topCategory} (₹{catInfo.categoryTotal.toLocaleString()})
+                        Top category: {catInfo.topCategory} ({formatMoney(catInfo.categoryTotal)})
                       </div>
                     )}
                   </div>

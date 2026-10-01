@@ -18,6 +18,7 @@ import {
 } from "react-icons/fa";
 import "./Auth.css";
 import { getApiOrigin } from "../api/client";
+import { SUPPORTED_CURRENCIES, detectCurrencyFromLocale } from "../utils/currency";
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -29,6 +30,7 @@ const Signup = () => {
     phoneNumber: "",
     department: "",
     year: "1st",
+    currency: detectCurrencyFromLocale(),
   });
 
   const [loading, setLoading] = useState(false);
@@ -48,6 +50,7 @@ const Signup = () => {
     phoneNumber,
     department,
     year,
+    currency,
   } = formData;
 
   const handleChange = (e) => {
@@ -122,6 +125,7 @@ const Signup = () => {
         phoneNumber: phoneNumber.trim(),
         department: department.trim(),
         year: year,
+        currency: currency,
       });
 
       if (data?.success && data?.requiresVerification) {
@@ -386,6 +390,25 @@ const Signup = () => {
                 ))}
               </select>
             </div>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="currency">Currency *</label>
+
+            <select
+              id="currency"
+              name="currency"
+              value={currency}
+              onChange={handleChange}
+              required
+              disabled={loading}
+            >
+              {SUPPORTED_CURRENCIES.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.code} - {c.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="form-group">

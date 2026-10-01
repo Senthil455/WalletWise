@@ -2,11 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import Tesseract from 'tesseract.js';
 import { Scan, Loader2, Lock, Unlock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { getCurrencySymbol } from '../utils/currency';
 import { useVault } from '../context/VaultContext';
 import { encryptNote } from '../services/encryption';
 import VaultSetup from '../components/Vault/VaultSetup';
 import VaultUnlock from '../components/Vault/VaultUnlock';
 import './AddExpense.css';
+
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // 1. Added 'transactionToEdit' to props
 const AddExpense = ({ isOpen, onClose, onSuccess, transactionToEdit }) => {
@@ -31,7 +34,7 @@ const AddExpense = ({ isOpen, onClose, onSuccess, transactionToEdit }) => {
   const [showVaultUnlock, setShowVaultUnlock] = useState(false);
 
   const { user } = useAuth();
-  const currencySymbol = user?.currency === 'INR' ? '₹' : (user?.currency === 'EUR' ? '€' : (user?.currency === 'GBP' ? '£' : '$'));
+  const currencySymbol = getCurrencySymbol(user?.currency);
 
   // 2. Added useEffect to pre-fill the form when editiSmart Receipt Scanning (OCR)Smart Receipt Scanning (OCR)ng
   useEffect(() => {
@@ -218,7 +221,7 @@ const AddExpense = ({ isOpen, onClose, onSuccess, transactionToEdit }) => {
     // 2. Extract Amount
     let amount = '';
     // Look for patterns like "TOTAL 123.45", "AMOUNT $10.00", etc.
-    const amountRegex = new RegExp(`(?:total|amount|sum|net|grand total|total amount|payable|due|paid)[:\\s]*[₹$€£\\s${currencySymbol}]*([\\d,]+\\.?\\d{0,2})`, 'i');
+    const amountRegex = new RegExp(`(?:total|amount|sum|net|grand total|total amount|payable|due|paid)[:\\s]*(?:[₹$€£¥]|${escapeRegExp(currencySymbol)}|\\s)*([\\d,]+\\.?\\d{0,2})`, 'i');
     const amountMatch = text.match(amountRegex);
 
     if (amountMatch && amountMatch[1]) {

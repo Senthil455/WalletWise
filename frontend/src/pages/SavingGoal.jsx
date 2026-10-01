@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { getCurrencySymbol, getCurrencyLocale } from '../utils/currency';
 import './SavingGoal.css';
 import ConfirmDialog from "../components/ConfirmDialog";
 
@@ -19,8 +20,8 @@ const SavingGoal = ({ isOpen, onClose, onGoalCreated }) => {
   const [success, setSuccess] = useState('');
 
   const { user } = useAuth();
-  const currencySymbol = user?.currency === 'INR' ? '₹' : (user?.currency === 'EUR' ? '€' : (user?.currency === 'GBP' ? '£' : '$'));
-  const locale = user?.currency === 'INR' ? 'en-IN' : 'en-US';
+  const currencySymbol = getCurrencySymbol(user?.currency);
+  const locale = getCurrencyLocale(user?.currency);
 
   const categories = ['Emergency Fund', 'Travel', 'Education', 'Home', 'Vehicle', 'Retirement', 'Wedding', 'Health', 'Gift', 'Other'];
 

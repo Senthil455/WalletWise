@@ -4,6 +4,7 @@ import api from '../api/client';
 import './SetBudget.css';
 import ConfirmDialog from "../components/ConfirmDialog";
 import { useAuth } from '../context/AuthContext';
+import { getCurrencySymbol, getCurrencyLocale } from '../utils/currency';
 
 const DEFAULT_CATEGORIES = [
   { name: 'Food', categoryType: 'food', amount: 0, percentage: 0, color: '#FF6B6B' },
@@ -25,8 +26,8 @@ const SetBudget = ({ isOpen, onClose, onSetBudget }) => {
 
   const [activeCategory, setActiveCategory] = useState(0);
   const { user } = useAuth();
-  const currencySymbol = user?.currency === 'INR' ? '₹' : (user?.currency === 'EUR' ? '€' : (user?.currency === 'GBP' ? '£' : '$'));
-  const locale = user?.currency === 'INR' ? 'en-IN' : 'en-US';
+  const currencySymbol = getCurrencySymbol(user?.currency);
+  const locale = getCurrencyLocale(user?.currency);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 

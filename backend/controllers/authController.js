@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const { z } = require('zod');
+const { isSupportedCurrency } = require('../constants/currencies');
 const crypto = require('crypto');
 const User = require('../models/User');
 const Transaction = require('../models/Transactions');
@@ -40,7 +41,13 @@ const registerSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
   phoneNumber: z.string().trim().optional().or(z.literal('')),
   department: z.string().trim().min(1, 'Department is required'),
-  year: z.enum(['1st', '2nd', '3rd', '4th', '5th'])
+  year: z.enum(['1st', '2nd', '3rd', '4th', '5th']),
+  currency: z
+    .string()
+    .trim()
+    .refine(isSupportedCurrency, { message: 'Unsupported currency code' })
+    .transform((value) => value.toUpperCase())
+    .optional()
 });
 
 const loginSchema = z.object({
@@ -53,7 +60,12 @@ const updateProfileSchema = z.object({
   phoneNumber: z.string().trim().optional(),
   department: z.string().trim().optional(),
   year: z.enum(['1st', '2nd', '3rd', '4th', '5th']).optional(),
-  currency: z.string().optional(),
+  currency: z
+    .string()
+    .trim()
+    .refine(isSupportedCurrency, { message: 'Unsupported currency code' })
+    .transform((value) => value.toUpperCase())
+    .optional(),
   dateFormat: z.string().optional(),
   language: z.string().optional(),
   theme: z.enum(['light', 'dark']).optional(),
@@ -206,7 +218,7 @@ const register = asyncHandler(async (req, res) => {
     });
   }
 
-  const { studentId, fullName, email, password, phoneNumber, department, year } = parsed.data;
+  const { studentId, fullName, email, password, phoneNumber, department, year, currency } = parsed.data;
 
   const existing = await User.findOne({ $or: [{ email }, { studentId }] });
   if (existing) {
@@ -224,6 +236,7 @@ const register = asyncHandler(async (req, res) => {
     phoneNumber,
     department,
     year,
+    ...(currency ? { currency } : {}),
     emailVerified: true // ✅ Skip email verification for local testing
   });
 

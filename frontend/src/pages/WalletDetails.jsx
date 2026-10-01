@@ -4,14 +4,8 @@ import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { FaArrowLeft, FaUsers, FaPlus, FaTrash, FaUserPlus, FaUserTie, FaUser } from 'react-icons/fa';
 import './SharedWallets.css';
+import { getCurrencySymbol } from '../utils/currency';
 import AddExpense from './AddExpense';
-
-const getCurrencySymbol = (currency) => {
-  if (currency === 'INR') return '₹';
-  if (currency === 'EUR') return '€';
-  if (currency === 'GBP') return '£';
-  return '$';
-};
 
 const getDisplayName = (memberUser) =>
   memberUser?.fullName || memberUser?.name || memberUser?.email || 'User';

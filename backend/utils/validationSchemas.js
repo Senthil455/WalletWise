@@ -1,4 +1,13 @@
 const { z } = require('zod');
+const { isSupportedCurrency } = require('../constants/currencies');
+
+// Optional ISO-4217 code; trimmed, validated against the supported list, upper-cased.
+const currencyField = z
+  .string()
+  .trim()
+  .refine(isSupportedCurrency, { message: 'Unsupported currency code' })
+  .transform((value) => value.toUpperCase())
+  .optional();
 
 // ==================== BUDGET SCHEMAS ====================
 
@@ -109,7 +118,8 @@ const userRegisterSchema = z.object({
     .min(6, 'Password must be at least 6 characters')
     .max(128, 'Password must not exceed 128 characters'),
   department: z.string().max(100).optional(),
-  year: z.string().max(20).optional()
+  year: z.string().max(20).optional(),
+  currency: currencyField
 });
 
 const userLoginSchema = z.object({
@@ -123,7 +133,7 @@ const userUpdateSchema = z.object({
   department: z.string().max(100).optional(),
   year: z.string().max(20).optional(),
   // Profile Settings
-  currency: z.string().optional(),
+  currency: currencyField,
   dateFormat: z.string().optional(),
   language: z.string().optional(),
   theme: z.enum(['light', 'dark']).optional(),

@@ -3,13 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../api/client';
 import { FaPlus, FaUserPlus, FaUsers, FaWallet } from 'react-icons/fa';
 import './SharedWallets.css';
-
-const getCurrencySymbol = (currency) => {
-  if (currency === 'INR') return '₹';
-  if (currency === 'EUR') return '€';
-  if (currency === 'GBP') return '£';
-  return '$';
-};
+import { SUPPORTED_CURRENCIES, getCurrencySymbol } from '../utils/currency';
 
 const SharedWallets = () => {
   const [wallets, setWallets] = useState([]);
@@ -194,10 +188,11 @@ const SharedWallets = () => {
                   value={newWalletData.currency}
                   onChange={(e) => setNewWalletData((prev) => ({ ...prev, currency: e.target.value }))}
                 >
-                  <option value="USD">USD ($)</option>
-                  <option value="EUR">EUR (€)</option>
-                  <option value="INR">INR (₹)</option>
-                  <option value="GBP">GBP (£)</option>
+                  {SUPPORTED_CURRENCIES.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.code} ({getCurrencySymbol(c.code)})
+                    </option>
+                  ))}
                 </select>
               </div>
 

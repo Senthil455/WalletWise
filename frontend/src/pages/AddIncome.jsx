@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { getCurrencySymbol } from '../utils/currency';
 import { useVault } from '../context/VaultContext';
 import { encryptNote } from '../services/encryption';
 import VaultSetup from '../components/Vault/VaultSetup';
@@ -24,7 +25,7 @@ const AddIncome = ({ isOpen, onClose, onSuccess }) => {
   const [showVaultUnlock, setShowVaultUnlock] = useState(false);
 
   const { user } = useAuth();
-  const currencySymbol = user?.currency === 'INR' ? '₹' : (user?.currency === 'EUR' ? '€' : (user?.currency === 'GBP' ? '£' : '$'));
+  const currencySymbol = getCurrencySymbol(user?.currency);
 
   const incomeCategories = [
     { value: 'pocket_money', label: 'Pocket Money' },
