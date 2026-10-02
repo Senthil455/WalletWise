@@ -18,6 +18,17 @@ const withTransaction = async (operation) => {
   return await operation(null);
 };
 
+// Returns the date following `from` for a recurrence interval, or null if the
+// interval is not recognised.
+const getNextExecutionDate = (from, interval) => {
+  const next = new Date(from);
+  if (interval === "daily") next.setDate(next.getDate() + 1);
+  else if (interval === "weekly") next.setDate(next.getDate() + 7);
+  else if (interval === "monthly") next.setMonth(next.getMonth() + 1);
+  else return null;
+  return next;
+};
+
 const transactionSchema = z.object({
   type: z.enum(['income', 'expense']),
   amount: z.preprocess(
@@ -221,75 +232,101 @@ const getAllTransactions = catchAsync(async (req, res) => {
     query.walletId = null; // Only personal transactions
   }
 
-  // Process recurring transactions using atomic findOneAndUpdate to prevent
-  // duplicate creation under concurrent requests (optimistic locking via
-  // nextExecutionDate guard).
+  // Process due recurring transactions.
+  //
+  // Each occurrence is claimed with a compare-and-set on nextExecutionDate:
+  // the schedule is advanced to its real next date *before* the occurrence is
+  // executed, so two concurrent requests can never execute the same occurrence.
+  // If executing fails (e.g. insufficient funds in STRICT mode, validation
+  // error), the claim is rolled back so the occurrence stays due, the item is
+  // skipped for the rest of this request, and the listing still succeeds.
   const now = new Date();
-  let rt;
-  while ((rt = await Transaction.findOneAndUpdate(
-    {
+  const failedRecurringIds = [];
+
+  while (true) {
+    const candidate = await Transaction.findOne({
+      _id: { $nin: failedRecurringIds },
       userId,
       isRecurring: true,
       nextExecutionDate: { $lte: now },
       walletId: null,
-    },
-    { $set: { nextExecutionDate: new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000) } },
-    { new: false }
-  )) !== null) {
-    await withTransaction(async (session) => {
+    }).sort({ nextExecutionDate: 1 });
 
-      const balanceChange = rt.type === 'income' ? rt.amount : -rt.amount;
-      
-      const query = { _id: rt.userId };
-      if (STRICT_MODE && balanceChange < 0) {
-        query.walletBalance = { $gte: Math.abs(balanceChange) };
-      }
+    if (!candidate) break;
 
-      const updatedUser = await User.findOneAndUpdate(
-        query,
-        { $inc: { walletBalance: balanceChange } },
-        { session, new: true }
+    const dueDate = candidate.nextExecutionDate;
+    const nextDate = getNextExecutionDate(dueDate, candidate.recurringInterval);
+
+    if (!nextDate) {
+      // Misconfigured recurrence (unknown interval) - never loop on it.
+      failedRecurringIds.push(candidate._id);
+      continue;
+    }
+
+    // Atomic claim: only succeeds if nobody else advanced this occurrence.
+    const rt = await Transaction.findOneAndUpdate(
+      { _id: candidate._id, nextExecutionDate: dueDate },
+      { $set: { nextExecutionDate: nextDate } },
+      { new: false }
+    );
+
+    if (!rt) continue; // lost the race to a concurrent request
+
+    try {
+      await withTransaction(async (session) => {
+        const balanceChange = rt.type === 'income' ? rt.amount : -rt.amount;
+
+        const userQuery = { _id: rt.userId };
+        if (STRICT_MODE && balanceChange < 0) {
+          userQuery.walletBalance = { $gte: Math.abs(balanceChange) };
+        }
+
+        const updatedUser = await User.findOneAndUpdate(
+          userQuery,
+          { $inc: { walletBalance: balanceChange } },
+          { session, new: true }
+        );
+
+        if (!updatedUser) {
+          throw new AppError('Insufficient personal funds to process recurring transaction', 400);
+        }
+
+        const newTransaction = new Transaction({
+          userId: rt.userId,
+          type: rt.type,
+          amount: rt.amount,
+          category: rt.category,
+          description: rt.description,
+          paymentMethod: rt.paymentMethod,
+          mood: rt.mood,
+          date: new Date()
+        });
+
+        try {
+          await newTransaction.save({ session });
+        } catch (error) {
+          // Revert balance change
+          await User.findByIdAndUpdate(rt.userId, { $inc: { walletBalance: -balanceChange } }, { session });
+          throw error;
+        }
+
+        await logTransactionActivity({
+          userId: rt.userId,
+          transactionId: newTransaction._id,
+          action: "CREATED"
+        });
+      });
+    } catch (error) {
+      // Roll the claim back (only if nobody changed the schedule since) so the
+      // occurrence is retried on a later request instead of being lost, and do
+      // not let one failing recurring item break the whole transactions list.
+      await Transaction.updateOne(
+        { _id: rt._id, nextExecutionDate: nextDate },
+        { $set: { nextExecutionDate: dueDate } }
       );
-
-      if (!updatedUser) {
-        // Skip this recurrence due to insufficient funds
-        throw new AppError('Insufficient personal funds to process recurring transaction', 400);
-      }
-
-      const newTransaction = new Transaction({
-        userId: rt.userId,
-        type: rt.type,
-        amount: rt.amount,
-        category: rt.category,
-        description: rt.description,
-        paymentMethod: rt.paymentMethod,
-        mood: rt.mood,
-        date: new Date()
-      });
-
-      try {
-        await newTransaction.save({ session });
-      } catch (error) {
-        // Revert balance change
-        await User.findByIdAndUpdate(rt.userId, { $inc: { walletBalance: -balanceChange } }, { session });
-        throw error;
-      }
-
-      await logTransactionActivity({
-        userId: rt.userId,
-        transactionId: newTransaction._id,
-        action: "CREATED"
-      });
-
-      // rt.nextExecutionDate is the *original* due date (before the atomic claim).
-      // Compute the real next date from it.
-      let nextDate = new Date(rt.nextExecutionDate);
-      if (rt.recurringInterval === "daily") nextDate.setDate(nextDate.getDate() + 1);
-      else if (rt.recurringInterval === "weekly") nextDate.setDate(nextDate.getDate() + 7);
-      else if (rt.recurringInterval === "monthly") nextDate.setMonth(nextDate.getMonth() + 1);
-
-      await Transaction.findByIdAndUpdate(rt._id, { nextExecutionDate: nextDate }, { session });
-    });
+      failedRecurringIds.push(rt._id);
+      console.error(`Recurring transaction ${rt._id} skipped: ${error.message}`);
+    }
   }
 
   if (type && type !== 'all') query.type = type;

@@ -258,6 +258,72 @@ describe('Transaction Controller', () => {
             expect(updatedRecurring.nextExecutionDate.toISOString()).toBe(new Date('2024-02-01T08:00:00.000Z').toISOString());
         });
 
+        it('should not break the list or lose the schedule when a recurring item fails to process', async () => {
+            mockdate.set('2024-01-01T10:00:00.000Z');
+            const dueDate = new Date('2024-01-01T08:00:00.000Z');
+
+            // Inserted via the raw collection to bypass schema validation, so that
+            // spawning this occurrence fails on save (category not in the enum).
+            const broken = await Transaction.collection.insertOne({
+                userId: user._id,
+                type: 'expense',
+                amount: 50,
+                category: 'not-a-real-category',
+                isRecurring: true,
+                recurringInterval: 'monthly',
+                nextExecutionDate: dueDate,
+                walletId: null,
+                date: new Date()
+            });
+
+            const healthy = await new Transaction({
+                userId: user._id,
+                type: 'income',
+                amount: 300,
+                category: 'salary',
+                isRecurring: true,
+                recurringInterval: 'monthly',
+                nextExecutionDate: dueDate
+            }).save();
+
+            const req = mockRequest({}, {}, {}, user._id);
+            const res = mockResponse();
+            await getAllTransactions(req, res, (err) => { throw err; });
+
+            // The request succeeds and the healthy recurrence is still processed
+            expect(res.json).toHaveBeenCalled();
+            const updatedUser = await User.findById(user._id);
+            expect(updatedUser.walletBalance).toBe(1300); // failed item fully reverted
+
+            // The failed recurrence stays due (not pushed a year ahead) so it can retry
+            const stillDue = await Transaction.findById(broken.insertedId);
+            expect(stillDue.nextExecutionDate.toISOString()).toBe(dueDate.toISOString());
+
+            const advanced = await Transaction.findById(healthy._id);
+            expect(advanced.nextExecutionDate.toISOString()).toBe(new Date('2024-02-01T08:00:00.000Z').toISOString());
+        });
+
+        it('should execute a due recurring transaction only once under concurrent requests', async () => {
+            mockdate.set('2024-01-01T10:00:00.000Z');
+
+            await new Transaction({
+                userId: user._id,
+                type: 'income',
+                amount: 100,
+                category: 'salary',
+                isRecurring: true,
+                recurringInterval: 'monthly',
+                nextExecutionDate: new Date('2024-01-01T08:00:00.000Z')
+            }).save();
+
+            await Promise.all([1, 2, 3].map(() =>
+                getAllTransactions(mockRequest({}, {}, {}, user._id), mockResponse(), () => {})
+            ));
+
+            const updatedUser = await User.findById(user._id);
+            expect(updatedUser.walletBalance).toBe(1100); // 1000 + a single 100
+        });
+
         it('should correctly filter and sort transactions', async () => {
             await Transaction.insertMany([
                 { userId: user._id, type: 'income', amount: 50, category: 'other', date: new Date('2024-01-02') },
