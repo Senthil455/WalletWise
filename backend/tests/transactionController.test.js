@@ -8,7 +8,8 @@ const {
     addTransaction,
     getAllTransactions,
     updateTransaction,
-    deleteTransaction
+    deleteTransaction,
+    processRecurringNow
 } = require('../controllers/transactionController');
 const { processDueRecurringTransactions } = require('../services/RecurringTransactionService');
 
@@ -302,6 +303,28 @@ describe('Transaction Controller', () => {
             // Check next execution date
             const updatedRecurring = await Transaction.findById(recurringTx._id);
             expect(updatedRecurring.nextExecutionDate.toISOString()).toBe(new Date('2024-02-01T08:00:00.000Z').toISOString());
+        });
+
+        it('exposes an explicit trigger for recurring processing', async () => {
+            mockdate.set('2024-01-01T10:00:00.000Z');
+
+            await new Transaction({
+                userId: user._id,
+                type: 'income',
+                amount: 300,
+                category: 'salary',
+                isRecurring: true,
+                recurringInterval: 'monthly',
+                nextExecutionDate: new Date('2024-01-01T08:00:00.000Z')
+            }).save();
+
+            const res = mockResponse();
+            await processRecurringNow(mockRequest({}, {}, {}, user._id), res, (err) => { throw err; });
+
+            const payload = res.json.mock.results[0].value;
+            expect(payload.success).toBe(true);
+            expect(payload.processed).toBe(1);
+            expect((await User.findById(user._id)).walletBalance).toBe(1300);
         });
 
         it('should not break the list or lose the schedule when a recurring item fails to process', async () => {
