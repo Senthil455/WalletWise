@@ -10,6 +10,7 @@ const {
     updateTransaction,
     deleteTransaction
 } = require('../controllers/transactionController');
+const { processDueRecurringTransactions } = require('../services/RecurringTransactionService');
 
 let mongoServer;
 
@@ -283,6 +284,14 @@ describe('Transaction Controller', () => {
 
             await getAllTransactions(req, res);
 
+            // The read path stays a read: nothing is created or charged yet
+            expect(res.json).toHaveBeenCalled();
+            expect((await User.findById(user._id)).walletBalance).toBe(1000);
+            expect((await Transaction.find({ userId: user._id, category: 'salary' })).length).toBe(1);
+
+            // The recurring processor is what does the work now
+            await processDueRecurringTransactions({ userId: user._id });
+
             const updatedUser = await User.findById(user._id);
             expect(updatedUser.walletBalance).toBe(1300); // 1000 + 300
 
@@ -327,6 +336,10 @@ describe('Transaction Controller', () => {
             const res = mockResponse();
             await getAllTransactions(req, res, (err) => { throw err; });
 
+            // Processing is separate from the read, but the failure still must
+            // not stop the healthy recurrence or lose the broken item's schedule
+            await processDueRecurringTransactions({ userId: user._id });
+
             // The request succeeds and the healthy recurrence is still processed
             expect(res.json).toHaveBeenCalled();
             const updatedUser = await User.findById(user._id);
@@ -354,7 +367,7 @@ describe('Transaction Controller', () => {
             }).save();
 
             await Promise.all([1, 2, 3].map(() =>
-                getAllTransactions(mockRequest({}, {}, {}, user._id), mockResponse(), () => {})
+                processDueRecurringTransactions({ userId: user._id })
             ));
 
             const updatedUser = await User.findById(user._id);
