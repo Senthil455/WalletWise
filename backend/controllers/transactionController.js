@@ -248,6 +248,22 @@ const getAllTransactions = catchAsync(async (req, res) => {
 
   const query = {};
   if (walletId) {
+    // A wallet can be shared, so anyone in members may read its transactions.
+    // Without this check any authenticated user could pass another wallet's
+    // id and read its transaction history.
+    if (!isValidObjectId(walletId)) {
+      throw new AppError('Invalid wallet ID format', 400);
+    }
+
+    const wallet = await Wallet.findOne({
+      _id: walletId,
+      'members.user': userId
+    });
+
+    if (!wallet) {
+      throw new AppError('Access denied to this wallet', 403);
+    }
+
     query.walletId = walletId;
   } else {
     query.userId = userId;
