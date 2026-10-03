@@ -371,8 +371,14 @@ const getAllTransactions = catchAsync(async (req, res) => {
     query.$or = [{ description: regex }, { category: regex }];
   }
 
-  const pageNum = parseInt(page);
-  const limitNum = parseInt(limit);
+  // Query params are strings, so parseInt("abc") yields NaN. Before this
+  // guard, a NaN page/limit was passed into skip()/limit() and Math.ceil,
+  // which took the whole request down with a 500. Anything that is not a
+  // positive integer now falls back to the default paging values.
+  const parsedPage = Number(page);
+  const parsedLimit = Number(limit);
+  const pageNum = Number.isInteger(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+  const limitNum = Number.isInteger(parsedLimit) && parsedLimit > 0 ? parsedLimit : 10;
   const skip = (pageNum - 1) * limitNum;
 
   let sortOptions = { date: -1 };
